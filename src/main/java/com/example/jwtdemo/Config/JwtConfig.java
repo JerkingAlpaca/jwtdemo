@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -25,22 +26,27 @@ public class JwtConfig extends WebSecurityConfigurerAdapter {
     @Autowired
     private CustomUserDetailService customUserDetailService;
 
+    @Autowired
+    private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception{
-        auth.userDetailsService(customUserDetailService);
+        auth.userDetailsService(customUserDetailService).passwordEncoder(passwordEncoder());
     }
 
     //control which endpoints are permitted and not permitted
     @Override
     protected void configure(HttpSecurity http) throws Exception{
         http
-                .csrf()
-                .disable()
-                .cors()
-                .disable()
+                .csrf().disable()
+                .cors().disable()
                 .authorizeRequests()
-                .antMatchers("/generateToken").permitAll() //only allow this endpoint without authentication
+                .antMatchers("/api/login", "/api/register", "/h2-console/**").permitAll() //only allow this endpoint without authentication
                 .anyRequest().authenticated() //for any other request, should be authenticated
+                .and()
+                .headers().frameOptions().disable()
+                .and()
+                .exceptionHandling().authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 .and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS); //every request is independent of other and server does not have to manage session
 
@@ -48,8 +54,8 @@ public class JwtConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder(){
-        return NoOpPasswordEncoder.getInstance();
+    public BCryptPasswordEncoder passwordEncoder(){
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
